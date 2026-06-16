@@ -35,7 +35,7 @@ logger = logging.getLogger("velour")
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 # Replace with your actual Groq API Key string
-GROQ_API_KEY: str = "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"
+GROQ_API_KEY: str = os.environ.get("GROQ_API_KEY")
 GROQ_API_BASE: str     = "https://api.groq.com/openai/v1"
 GROQ_CHAT_ENDPOINT: str = f"{GROQ_API_BASE}/chat/completions"
 GROQ_MODEL: str        = "meta-llama/llama-4-scout-17b-16e-instruct"
