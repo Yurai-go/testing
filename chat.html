@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Velour — Elite Wardrobe Concierge</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/chat.css" />
+</head>
+<body>
+
+  <nav class="global-navbar">
+    <div class="nav-col nav-left">
+      <a href="/" class="nav-link">Dashboard</a>
+    </div>
+    <div class="nav-col nav-center">
+      <a href="/" class="nav-logo-link" aria-label="FabCare — Home">
+        <img src="/static/logo.png" alt="FabCare" class="nav-logo" />
+      </a>
+    </div>
+    <div class="nav-col nav-right">
+      <a href="/chat.html" class="nav-link nav-link--active">Consultation</a>
+    </div>
+  </nav>
+
+  <canvas id="grain-canvas" aria-hidden="true"></canvas>
+
+  <div class="app-shell">
+    <!-- ═══════════════════════════════════════════
+         SIDEBAR — Brand + Navigation
+    ════════════════════════════════════════════ -->
+    <aside class="sidebar" role="complementary" aria-label="Application sidebar">
+
+      <header class="sidebar__brand">
+        <div class="brand-mark" aria-hidden="true">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M14 2L25 8V20L14 26L3 20V8L14 2Z" stroke="#C9A96E" stroke-width="1.2" fill="none"/>
+            <path d="M14 7L21 11V19L14 23L7 19V11L14 7Z" fill="#C9A96E" fill-opacity="0.12" stroke="#C9A96E" stroke-width="0.8"/>
+            <circle cx="14" cy="14" r="2.5" fill="#C9A96E"/>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <h1 class="brand-name">FABCARE</h1>
+          <span class="brand-tagline">Technical Advisor</span>
+        </div>
+      </header>
+
+      <nav class="sidebar__nav" aria-label="Session navigation">
+        <button class="nav-btn nav-btn--new" id="new-chat-btn" aria-label="Start new consultation">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <path d="M7 1V13M1 7H13" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+          </svg>
+          New Consultation
+        </button>
+
+        <div class="nav-section-label">Recent Sessions</div>
+        <ul class="session-list" id="session-list" role="list">
+          <li class="session-item session-item--active" role="listitem">
+            <span class="session-icon" aria-hidden="true">◈</span>
+            <span class="session-title">Loro Piana Cashmere Coat</span>
+          </li>
+          <li class="session-item" role="listitem">
+            <span class="session-icon" aria-hidden="true">◈</span>
+            <span class="session-title">Hermès Silk Scarf Care</span>
+          </li>
+          <li class="session-item" role="listitem">
+            <span class="session-icon" aria-hidden="true">◈</span>
+            <span class="session-title">Brioni Suit Restoration</span>
+          </li>
+        </ul>
+      </nav>
+
+    </aside>
+
+    <!-- ═══════════════════════════════════════════
+         MAIN — Chat View
+    ════════════════════════════════════════════ -->
+    <main class="chat-main" role="main">
+
+      <!-- ── Message Feed ── -->
+      <section class="chat-feed" id="chat-feed" role="log" aria-live="polite" aria-label="Consultation messages">
+
+        <!-- Welcome state — shown when no messages exist -->
+        <div class="welcome-state" id="welcome-state" aria-hidden="false">
+          <div class="welcome-emblem" aria-hidden="true">
+            <svg width="52" height="52" viewBox="0 0 52 52" fill="none">
+              <path d="M26 4L48 16V36L26 48L4 36V16L26 4Z" stroke="#C9A96E" stroke-width="1" fill="none" opacity="0.4"/>
+              <path d="M26 10L42 19V33L26 42L10 33V19L26 10Z" stroke="#C9A96E" stroke-width="1.2" fill="none" opacity="0.7"/>
+              <path d="M26 18L36 23.5V31L26 36.5L16 31V23.5L26 18Z" fill="#C9A96E" fill-opacity="0.1" stroke="#C9A96E" stroke-width="1"/>
+              <circle cx="26" cy="26" r="4" fill="#C9A96E" opacity="0.8"/>
+            </svg>
+          </div>
+          <h2 class="welcome-heading">Your Wardrobe, Elevated.</h2>
+          <p class="welcome-body">Upload photographs of your luxury garments for expert care guidance, fabric analysis, and restoration recommendations crafted for connoisseurs.</p>
+          <div class="welcome-prompts" role="list" aria-label="Suggested consultation topics">
+            <button class="prompt-chip" role="listitem" data-prompt="Analyze the fabric composition and recommend a professional cleaning protocol for this garment.">
+              Fabric & Cleaning Protocol
+            </button>
+            <button class="prompt-chip" role="listitem" data-prompt="Identify any signs of wear, damage, or aging on this piece and recommend restoration steps.">
+              Damage & Restoration
+            </button>
+            <button class="prompt-chip" role="listitem" data-prompt="Advise on optimal long-term storage conditions and seasonal care for this garment.">
+              Storage & Preservation
+            </button>
+            <button class="prompt-chip" role="listitem" data-prompt="Authenticate the craftsmanship details and estimate the care tier this garment requires.">
+              Craftsmanship Authentication
+            </button>
+          </div>
+        </div>
+
+        <!-- Messages are injected here by chat.js -->
+        <div class="messages-container" id="messages-container" role="list"></div>
+
+      </section>
+
+      <!-- ── Input Zone ── -->
+      <footer class="input-zone" role="contentinfo">
+
+        <!-- Image preview queue -->
+        <div class="image-queue" id="image-queue" aria-label="Selected images queue" aria-live="polite" hidden>
+          <div class="image-queue__scroll" id="image-queue-scroll" role="list"></div>
+        </div>
+
+        <!-- Garment Context Strip -->
+        <div class="vc-garment-strip" id="vc-garment-strip" hidden>
+          <div class="vc-garment-strip__inner" id="vc-garment-strip-inner"></div>
+          <button class="vc-garment-strip__clear" id="vc-garment-strip-clear" aria-label="Clear selected garments">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Drop zone overlay -->
+        <div class="dropzone-overlay" id="dropzone-overlay" aria-hidden="true" role="presentation">
+          <div class="dropzone-overlay__inner">
+            <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+              <path d="M16 4V22M8 12L16 4L24 12" stroke="#C9A96E" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M4 24V28H28V24" stroke="#C9A96E" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>
+            <span>Drop garment images here</span>
+          </div>
+        </div>
+
+        <!-- Composer -->
+        <div class="composer" id="composer">
+          <div class="composer__inner">
+            
+            <!-- Text input (Top Row) -->
+            <div class="composer__field-wrap">
+              <textarea
+                id="message-input"
+                class="composer__field"
+                placeholder="Describe your garment or ask for care guidance…"
+                rows="1"
+                maxlength="4000"
+                aria-label="Message input"
+                aria-multiline="true"
+              ></textarea>
+            </div>
+
+            <!-- Action Buttons (Bottom Row) -->
+            <div class="composer__actions">
+              
+              <div class="composer__actions-left">
+                <!-- Attach button (+) -->
+                <label class="composer__action-btn" for="file-input" aria-label="Attach garment images" title="Attach images">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 5v14M5 12h14" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                  <input
+                    type="file"
+                    id="file-input"
+                    accept="image/jpeg,image/png,image/webp,image/gif"
+                    multiple
+                    aria-label="Upload garment images"
+                    hidden
+                  />
+                </label>
+
+                <!-- Tools Button (Vault) -->
+                <div class="vc-tools-wrapper" style="position:relative;">
+                  <button class="composer__action-btn composer__action-btn--text" id="vault-tools-btn" aria-label="Open Digital Vault tools" aria-expanded="false" aria-haspopup="true">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <span>Tools</span>
+                  </button>
+                  <!-- Tools Dropdown -->
+                  <div class="vc-tools-dropdown" id="vc-tools-dropdown" aria-hidden="true">
+                    <button class="vc-tools-option" id="vc-select-garments-btn">
+                      <span class="vc-tools-option__icon">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M20 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/>
+                          <polyline points="16 3 12 7 8 3"/>
+                        </svg>
+                      </span>
+                      Select Garments
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Send button -->
+              <button class="composer__send" id="send-btn" aria-label="Send message" disabled>
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <path d="M14 8L2 2L5.5 8L2 14L14 8Z" fill="currentColor"/>
+                </svg>
+              </button>
+
+            </div>
+          </div>
+
+          <div class="composer__hints">
+            <span>Drag &amp; drop images anywhere</span>
+            <span class="hint-sep" aria-hidden="true">·</span>
+            <span id="char-count" aria-live="polite" aria-atomic="true">0 / 4000</span>
+          </div>
+        </div>
+      </footer>
+
+    </main>
+
+  </div>
+
+  <!-- GARMENT PICKER OVERLAY -->
+  <div class="vc-picker-overlay" id="vc-picker-overlay" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Select garments for consultation">
+    <div class="vc-picker-panel">
+      <div class="vc-picker-header">
+        <div>
+          <h3 class="vc-picker-title">Select Garments</h3>
+          <p class="vc-picker-sub">Choose items from your vault. The AI will receive their exact fabric, colour data, and garment photo.</p>
+        </div>
+        <button class="vc-picker-close" id="vc-picker-close" aria-label="Close garment picker">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+      <div class="vc-picker-grid" id="vc-picker-grid" role="list"></div>
+      <div class="vc-picker-footer">
+        <span class="vc-picker-count" id="vc-picker-count">0 selected</span>
+        <button class="vc-picker-confirm btn-primary-vc" id="vc-picker-confirm" disabled>
+          Confirm Selection
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Supabase for vault garment data -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/static/chat.js"></script>
+</body>
+</html>

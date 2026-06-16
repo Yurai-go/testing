@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FabCare — Wardrobe Asset Vault</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400;1,500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/styles.css" />
+  <link rel="stylesheet" href="/static/split-view.css" />
+  <style>
+    /* ── FABRIC ML INFERENCE BADGE ── */
+    .ml-badge {
+      position: absolute;
+      bottom: 10px; left: 50%;
+      transform: translateX(-50%);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(8,10,13,0.82);
+      border: 1px solid rgba(201,169,110,0.35);
+      border-radius: 20px;
+      padding: 4px 12px;
+      font-size: 0.68rem;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      color: #C9A96E;
+      white-space: nowrap;
+      z-index: 6;
+      pointer-events: none;
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      transition: opacity 200ms ease;
+    }
+    .ml-badge[hidden] { display: none; }
+    .ml-badge--scanning { border-color: rgba(138,146,166,0.4); color: rgba(138,146,166,0.7); }
+    .ml-badge--unknown  { border-color: rgba(224,82,82,0.45); color: #F87171; }
+    /* AI garment badge — teal-gold variant */
+    .ai-badge { border-color: rgba(61,190,122,0.4); color: #3DBE7A; }
+    .ai-badge.ml-badge--scanning { border-color: rgba(138,146,166,0.4); color: rgba(138,146,166,0.7); }
+    .ai-badge.ml-badge--done { border-color: rgba(61,190,122,0.5); color: #3DBE7A; }
+    .ai-badge.ml-badge--error { border-color: rgba(224,82,82,0.4); color: #F87171; }
+    .ml-badge__spinner {
+      width: 10px; height: 10px;
+      border: 1.5px solid rgba(138,146,166,0.3);
+      border-top-color: rgba(138,146,166,0.8);
+      border-radius: 50%;
+      animation: ml-spin 0.7s linear infinite;
+      flex-shrink: 0;
+    }
+    .ml-badge__spinner[hidden] { display: none; }
+    @keyframes ml-spin { to { transform: rotate(360deg); } }
+    /* ── UNKNOWN FABRIC ALERT ── */
+    .ml-unknown-alert {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(224,82,82,0.07);
+      border: 1px solid rgba(224,82,82,0.28);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 0.78rem;
+      color: #F87171;
+      line-height: 1.45;
+      margin-top: 6px;
+      grid-column: 1 / -1;
+      animation: ml-fadein 220ms ease;
+    }
+    .ml-unknown-alert[hidden] { display: none; }
+    .ml-unknown-alert svg { flex-shrink: 0; }
+    @keyframes ml-fadein { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:translateY(0); } }
+  </style>
+</head>
+<body>
+
+  <!-- GLOBAL NAVBAR -->
+  <nav class="global-navbar">
+    <div class="nav-col nav-left">
+      <a href="/" class="nav-link nav-link--active">Dashboard</a>
+    </div>
+    <div class="nav-col nav-center">
+      <a href="/" class="nav-logo-link" aria-label="FabCare — Home">
+        <img src="/static/logo.png" alt="FabCare" class="nav-logo" />
+      </a>
+    </div>
+    <div class="nav-col nav-right">
+      <a href="chat.html" class="nav-link">Consultation</a>
+    </div>
+  </nav>
+
+  <!-- ═══════════════════════════════════════════════════
+       MASTER SPLIT VIEWPORT
+  ════════════════════════════════════════════════════ -->
+  <div class="app-split-viewport" id="app-split-viewport">
+
+    <!-- ── LEFT PANEL: Wardrobe Vault (2/3) ── -->
+    <div class="split-panel split-panel--vault" id="split-panel-vault">
+      <main class="main">
+
+        <!-- ── HEADER ── -->
+        <header class="header">
+          <div class="header-brand">
+            <p class="wordmark">FabCare</p>
+            <h1 class="page-title">Wardrobe <em>Vault</em></h1>
+            <p class="page-subtitle">Your curated asset registry</p>
+          </div>
+
+          <div class="header-controls">
+            <div class="search-bar">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              </svg>
+              <input type="text" id="search-input" placeholder="Search assets…" autocomplete="off" />
+            </div>
+
+            <select id="filter-type" class="filter-select">
+              <option value="">All Types</option>
+              <option value="jacket">Jacket</option>
+              <option value="blazer">Blazer</option>
+              <option value="shirt">Shirt</option>
+              <option value="t-shirt">T-Shirt</option>
+              <option value="trousers">Trousers</option>
+              <option value="shoes">Shoes</option>
+              <option value="accessory">Accessory</option>
+            </select>
+
+            <select id="filter-sort" class="filter-select">
+              <option value="recent">Most Recent</option>
+              <option value="name">Name A–Z</option>
+            </select>
+
+            <!-- Treatments -->
+            <div class="treatments-wrapper">
+              <button class="btn-treatments" id="btn-treatments" aria-label="Treatments">
+                <span class="btn-treatments__shimmer" aria-hidden="true"></span>
+                <span class="btn-treatments__icon" aria-hidden="true">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 2a5 5 0 0 1 5 5c0 1.8-.7 3.3-2 4.4V20a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1v-8.6A5 5 0 0 1 7 7a5 5 0 0 1 5-5z"/>
+                  </svg>
+                </span>
+                <span class="btn-treatments__label">Treatments</span>
+                <svg class="btn-treatments__caret" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <polyline points="6 9 12 15 18 9"/>
+                </svg>
+              </button>
+
+              <div class="treatments-dropdown" id="treatments-dropdown" role="menu">
+                <div class="treat-dropdown-header">
+                  <span class="treat-dropdown-eyebrow">Algorithmic Treatment Guide</span>
+                </div>
+                <button class="treat-option" data-treat="wash" role="menuitem">
+                  <span class="treat-icon">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                      <path d="M4 4l1 1m0 0C6 6 6 8 4 9s-1 3 0 4m16-9l-1 1m0 0C18 6 18 8 20 9s1 3 0 4M12 3v1m0 16v1M7 8c0 2.8 2.2 5 5 5s5-2.2 5-5"/>
+                    </svg>
+                  </span>
+                  <span class="treat-option__body">
+                    <span class="treat-option__name">Wash</span>
+                    <span class="treat-option__desc">Fabric-safe cleaning protocol</span>
+                  </span>
+                </button>
+                <div class="treat-divider"></div>
+                <button class="treat-option" data-treat="dry" role="menuitem">
+                  <span class="treat-icon">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                      <path d="M12 3v4m0 10v4M5.6 5.6l2.8 2.8m7.2 7.2 2.8 2.8M3 12h4m10 0h4M5.6 18.4l2.8-2.8m7.2-7.2 2.8-2.8"/>
+                    </svg>
+                  </span>
+                  <span class="treat-option__body">
+                    <span class="treat-option__name">Dry</span>
+                    <span class="treat-option__desc">Temperature &amp; method guidance</span>
+                  </span>
+                </button>
+                <div class="treat-divider"></div>
+                <button class="treat-option" data-treat="store" role="menuitem">
+                  <span class="treat-icon">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                      <rect x="2" y="7" width="20" height="14" rx="2"/>
+                      <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>
+                    </svg>
+                  </span>
+                  <span class="treat-option__body">
+                    <span class="treat-option__name">Store</span>
+                    <span class="treat-option__desc">Long-term preservation plan</span>
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            <button class="btn-primary" id="btn-add-asset">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+              </svg>
+              Add Asset
+            </button>
+          </div>
+        </header>
+
+        <!-- ── FEATURE SPOTLIGHT BANNER ── -->
+        <div class="feature-spotlight" id="feature-spotlight" aria-label="Feature spotlight">
+          <div class="feature-spotlight__track" aria-hidden="true">
+            <!-- Set 1 -->
+            <div class="feature-spotlight__item">
+              <span class="feature-spotlight__icon">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+                  <path d="M12 2a5 5 0 0 1 5 5c0 1.8-.7 3.3-2 4.4V20a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1v-8.6A5 5 0 0 1 7 7a5 5 0 0 1 5-5z"/>
+                </svg>
+              </span>
+              <span>Select garments &rarr; run a Treatment &rarr; receive an AI-personalised care protocol in seconds</span>
+            </div>
+            <span class="feature-spotlight__sep">◆</span>
+            <div class="feature-spotlight__item">
+              <span class="feature-spotlight__icon">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                </svg>
+              </span>
+              <span>ML fabric recognition · expert wash, dry &amp; storage guidance · per-fibre detail</span>
+            </div>
+            <span class="feature-spotlight__sep">◆</span>
+            <div class="feature-spotlight__item">
+              <span class="feature-spotlight__icon">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+                  <circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/>
+                </svg>
+              </span>
+              <span>Built for Loro Piana, Brioni, Kiton, and every fabric worth protecting</span>
+            </div>
+            <span class="feature-spotlight__sep">◆</span>
+            <!-- Set 2 — duplicate for seamless loop -->
+            <div class="feature-spotlight__item">
+              <span class="feature-spotlight__icon">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+                  <path d="M12 2a5 5 0 0 1 5 5c0 1.8-.7 3.3-2 4.4V20a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1v-8.6A5 5 0 0 1 7 7a5 5 0 0 1 5-5z"/>
+                </svg>
+              </span>
+              <span>Select garments &rarr; run a Treatment &rarr; receive an AI-personalised care protocol in seconds</span>
+            </div>
+            <span class="feature-spotlight__sep">◆</span>
+            <div class="feature-spotlight__item">
+              <span class="feature-spotlight__icon">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                </svg>
+              </span>
+              <span>ML fabric recognition · expert wash, dry &amp; storage guidance · per-fibre detail</span>
+            </div>
+            <span class="feature-spotlight__sep">◆</span>
+            <div class="feature-spotlight__item">
+              <span class="feature-spotlight__icon">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+                  <circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/>
+                </svg>
+              </span>
+              <span>Built for Loro Piana, Brioni, Kiton, and every fabric worth protecting</span>
+            </div>
+            <span class="feature-spotlight__sep">◆</span>
+          </div>
+        </div>
+
+        <!-- ── METRICS ── -->
+        <div class="metric-strip" id="metric-strip">
+          <div class="metric-card">
+            <span class="metric-label">Total Pieces</span>
+            <span class="metric-value" id="metric-total">0</span>
+          </div>
+          <div class="metric-card">
+            <span class="metric-label">Categories</span>
+            <span class="metric-value" id="metric-cats">0</span>
+          </div>
+          <div class="metric-card">
+            <span class="metric-label">Latest Acquired</span>
+            <span class="metric-value" style="font-size:0.95rem; padding-top:3px" id="metric-latest">—</span>
+          </div>
+        </div>
+
+        <!-- ── TREATMENT ACTION BAR ── -->
+        <div class="treatment-bar" id="treatment-bar">
+          <div class="treat-bar-left">
+            <span class="treat-badge" id="treat-badge-label">Wash</span>
+            <span class="treat-instruction">
+              <strong id="treat-count">0 items</strong> selected — tap garments to include in treatment
+            </span>
+          </div>
+          <div class="treat-bar-right">
+            <button class="btn-cancel-treat" id="btn-cancel-treat">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+              Cancel
+            </button>
+            <button class="btn-confirm-treat" id="btn-confirm-treat">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+              Confirm Treatment
+            </button>
+          </div>
+        </div>
+
+        <!-- ── ASSET GRID ── -->
+        <div class="asset-grid" id="asset-grid"></div>
+
+        <!-- ── EMPTY STATE ── -->
+        <div class="empty-state" id="empty-state">
+          <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+            <path d="M20 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/>
+            <polyline points="16 3 12 7 8 3"/>
+          </svg>
+          <p class="empty-title">Vault is empty</p>
+          <p class="empty-sub">Add your first garment asset to begin tracking.</p>
+        </div>
+
+      </main>
+    </div><!-- /split-panel--vault -->
+
+    <!-- ── SPLIT DIVIDER ── -->
+    <div class="split-divider" id="split-divider" role="separator" aria-orientation="vertical">
+      <button
+        class="split-toggle-btn"
+        id="split-toggle-btn"
+        aria-label="Toggle consultation panel"
+        aria-expanded="true"
+        aria-controls="split-panel-chat"
+      >
+        <svg class="split-toggle-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="15 18 9 12 15 6"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- ── RIGHT PANEL: AI Consultation (1/3) ── -->
+    <div class="split-panel split-panel--chat" id="split-panel-chat"
+         role="complementary" aria-label="AI Consultation panel">
+
+      <!-- Panel Header -->
+      <header class="sv-chat-header">
+        <div class="sv-chat-brand">
+          <div class="sv-brand-gem" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 28 28" fill="none">
+              <path d="M14 2L25 8V20L14 26L3 20V8L14 2Z" stroke="#C9A96E" stroke-width="1.2" fill="none"/>
+              <path d="M14 7L21 11V19L14 23L7 19V11L14 7Z" fill="#C9A96E" fill-opacity="0.12" stroke="#C9A96E" stroke-width="0.8"/>
+              <circle cx="14" cy="14" r="2.5" fill="#C9A96E"/>
+            </svg>
+          </div>
+          <div>
+            <p class="sv-brand-name">Technical Advisor</p>
+            <p class="sv-brand-status">
+              <span class="sv-status-dot" aria-hidden="true"></span>
+              <span>Ready for consultation</span>
+            </p>
+          </div>
+        </div>
+        <div class="sv-header-actions">
+          <!-- New conversation -->
+          <button class="sv-icon-btn" id="sv-new-chat-btn" title="New consultation" aria-label="Start new consultation">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 5v14M5 12h14"/>
+            </svg>
+          </button>
+          <!-- Expand to full page -->
+          <a href="chat.html" class="sv-icon-btn" title="Open full consultation" aria-label="Open full consultation view">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
+            </svg>
+          </a>
+        </div>
+      </header>
+
+      <!-- ── Message Feed ── -->
+      <div class="sv-feed" id="sv-feed" role="log" aria-live="polite" aria-label="Consultation messages">
+
+        <!-- Welcome state -->
+        <div class="sv-welcome" id="sv-welcome">
+          <div class="sv-welcome-emblem" aria-hidden="true">
+            <svg width="32" height="32" viewBox="0 0 52 52" fill="none">
+              <path d="M26 4L48 16V36L26 48L4 36V16L26 4Z" stroke="#C9A96E" stroke-width="1" fill="none" opacity="0.4"/>
+              <path d="M26 10L42 19V33L26 42L10 33V19L26 10Z" stroke="#C9A96E" stroke-width="1.2" fill="none" opacity="0.7"/>
+              <path d="M26 18L36 23.5V31L26 36.5L16 31V23.5L26 18Z" fill="#C9A96E" fill-opacity="0.1" stroke="#C9A96E" stroke-width="1"/>
+              <circle cx="26" cy="26" r="4" fill="#C9A96E" opacity="0.8"/>
+            </svg>
+          </div>
+          <h2 class="sv-welcome-heading">Expert Care<br/><em>Guidance</em></h2>
+          <p class="sv-welcome-sub">Ask about fabric care, restoration, or storage for any garment in your vault.</p>
+          <div class="sv-prompt-chips" role="list" aria-label="Suggested topics">
+            <button class="sv-chip" role="listitem"
+              data-prompt="Analyze the fabric composition and recommend a professional cleaning protocol for this garment.">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/>
+              </svg>
+              Fabric &amp; Cleaning
+            </button>
+            <button class="sv-chip" role="listitem"
+              data-prompt="Identify any signs of wear, damage, or aging on this piece and recommend restoration steps.">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+              </svg>
+              Damage &amp; Restore
+            </button>
+            <button class="sv-chip" role="listitem"
+              data-prompt="Advise on optimal long-term storage conditions and seasonal care for this garment.">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="7" width="20" height="14" rx="2"/>
+                <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>
+              </svg>
+              Storage &amp; Preservation
+            </button>
+            <button class="sv-chip" role="listitem"
+              data-prompt="Authenticate the craftsmanship details and estimate the care tier this garment requires.">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              </svg>
+              Authentication
+            </button>
+          </div>
+        </div>
+
+        <!-- Messages rendered here by split-view.js -->
+        <div class="sv-messages" id="sv-messages" role="list"></div>
+
+      </div><!-- /sv-feed -->
+
+      <!-- ── Input Zone ── -->
+      <footer class="sv-input-zone" id="sv-input-zone">
+
+        <!-- Image preview queue -->
+        <div class="sv-image-queue image-queue" id="sv-image-queue"
+             aria-label="Selected images" aria-live="polite" hidden>
+          <div class="image-queue__scroll" id="sv-image-queue-scroll" role="list"></div>
+        </div>
+
+        <!-- Drop-zone overlay (scoped to panel) -->
+        <div class="sv-dropzone-overlay dropzone-overlay" id="sv-dropzone-overlay"
+             aria-hidden="true" role="presentation">
+          <div class="dropzone-overlay__inner">
+            <svg width="26" height="26" viewBox="0 0 32 32" fill="none">
+              <path d="M16 4V22M8 12L16 4L24 12" stroke="#C9A96E" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M4 24V28H28V24" stroke="#C9A96E" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>
+            <span>Drop garment images here</span>
+          </div>
+        </div>
+
+        <!-- Selected Garments Context Strip -->
+        <div class="sv-garment-strip" id="sv-garment-strip" hidden>
+          <div class="sv-garment-strip__inner" id="sv-garment-strip-inner"></div>
+          <button class="sv-garment-strip__clear" id="sv-garment-strip-clear" aria-label="Clear selected garments">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Composer -->
+        <div class="sv-composer" id="sv-composer">
+          <div class="sv-composer__inner">
+            <div class="sv-composer__field-wrap">
+              <textarea
+                id="sv-message-input"
+                class="sv-composer__field"
+                placeholder="Select garments via Tools to begin…"
+                rows="1"
+                maxlength="4000"
+                aria-label="Consultation message"
+                aria-multiline="true"
+              ></textarea>
+            </div>
+            <div class="sv-composer__actions">
+              <div class="sv-composer__actions-left">
+                <label class="sv-composer__action-btn" for="sv-file-input"
+                       aria-label="Attach garment images" title="Attach images">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                       stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 5v14M5 12h14"/>
+                  </svg>
+                  <input type="file" id="sv-file-input"
+                         accept="image/jpeg,image/png,image/webp,image/gif"
+                         multiple aria-label="Upload garment images" hidden />
+                </label>
+                <!-- Tools Button -->
+                <button class="sv-composer__action-btn sv-composer__action-btn--text" id="sv-tools-btn" aria-label="Open tools menu">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/>
+                  </svg>
+                  <span>Tools</span>
+                </button>
+                <!-- Tools Dropdown -->
+                <div class="sv-tools-dropdown" id="sv-tools-dropdown" aria-hidden="true">
+                  <button class="sv-tools-option" id="sv-select-garments-btn">
+                    <span class="sv-tools-option__icon">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M20 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/>
+                        <polyline points="16 3 12 7 8 3"/>
+                      </svg>
+                    </span>
+                    Select Garments
+                  </button>
+                </div>
+              </div>
+              <button class="sv-composer__send" id="sv-send-btn" aria-label="Send message" disabled>
+                <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+                  <path d="M14 8L2 2L5.5 8L2 14L14 8Z" fill="currentColor"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div class="sv-composer__hints">
+            <span id="sv-char-count" aria-live="polite" aria-atomic="true">0 / 4000</span>
+            <span class="hint-sep" aria-hidden="true">·</span>
+            <span>Shift+Enter for new line</span>
+          </div>
+        </div>
+
+      </footer>
+
+    </div><!-- /split-panel--chat -->
+
+  </div><!-- /app-split-viewport -->
+
+
+  <!-- ══════════════════════════════════════
+       MODALS & OVERLAYS
+  ══════════════════════════════════════════ -->
+
+  <!-- DETAIL MODAL -->
+  <div class="modal-overlay" id="modal-overlay" aria-hidden="true">
+    <div class="modal-panel" role="dialog" aria-modal="true">
+
+      <button class="modal-close" id="modal-close" aria-label="Close">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+
+      <div class="modal-image-wrap">
+        <img src="" alt="" class="modal-main-img" id="modal-img-main" />
+        <img src="" alt="Texture" class="modal-texture-img" id="modal-img-texture" />
+        <div class="modal-badge" id="modal-badge"></div>
+      </div>
+
+      <div class="modal-body">
+        <div>
+          <p class="modal-brand" id="modal-brand"></p>
+          <h2 class="modal-title" id="modal-title"></h2>
+        </div>
+        <div class="modal-specs">
+          <div class="spec-row"><span class="spec-label">Type</span><span class="spec-val" id="modal-type"></span></div>
+          <div class="spec-row"><span class="spec-label">Color</span><span class="spec-val" id="modal-color"></span></div>
+          <div class="spec-row"><span class="spec-label">Fabric</span><span class="spec-val" id="modal-fabric"></span></div>
+          <div class="spec-row"><span class="spec-label">Acquired</span><span class="spec-val" id="modal-acquired"></span></div>
+          <div class="spec-row"><span class="spec-label">Asset ID</span><span class="spec-val mono" id="modal-id"></span></div>
+        </div>
+        <div class="modal-actions">
+          <button class="btn-ghost" id="btn-edit-asset">Edit Asset</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- INGESTION DRAWER -->
+  <div class="drawer-overlay" id="drawer-overlay" aria-hidden="true">
+    <div class="drawer-panel" role="dialog" aria-modal="true">
+
+      <div class="drawer-header">
+        <div>
+          <h2 class="drawer-title" id="drawer-title">Ingest New Asset</h2>
+          <p class="drawer-sub" id="drawer-sub">Register a garment into the vault</p>
+        </div>
+        <button class="modal-close" id="drawer-close" aria-label="Close">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+
+      <form class="ingestion-form" id="ingestion-form" novalidate>
+
+        <div class="upload-grid">
+          <div class="dropzone" id="dz-garment">
+            <input type="file" id="file-garment" accept="image/*" hidden />
+            <div class="dz-inner">
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
+                <rect x="3" y="3" width="18" height="18" rx="2"/>
+                <circle cx="8.5" cy="8.5" r="1.5"/>
+                <polyline points="21 15 16 10 5 21"/>
+              </svg>
+              <p class="dz-label">Garment Photo</p>
+              <p class="dz-hint">Drag &amp; drop or click</p>
+            </div>
+            <img class="dz-preview" id="preview-garment" alt="" />
+            <!-- AI garment analysis status badge -->
+            <div class="ml-badge ai-badge" id="ai-garment-badge" hidden>
+              <span class="ml-badge__spinner" id="ai-garment-spinner" hidden></span>
+              <span class="ml-badge__label" id="ai-garment-label"></span>
+            </div>
+          </div>
+
+          <div class="dropzone" id="dz-texture">
+            <input type="file" id="file-texture" accept="image/*" hidden />
+            <div class="dz-inner">
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+              </svg>
+              <p class="dz-label">Fabric Texture</p>
+              <p class="dz-hint">Drag &amp; drop or click</p>
+            </div>
+            <img class="dz-preview" id="preview-texture" alt="" />
+            <!-- ML inference status badge — shown only after upload -->
+            <div class="ml-badge" id="ml-badge" hidden>
+              <span class="ml-badge__spinner" id="ml-badge-spinner" hidden></span>
+              <span class="ml-badge__label" id="ml-badge-label"></span>
+            </div>
+          </div>
+          <!-- AI garment unrecognized alert -->
+          <div class="ml-unknown-alert ai-unknown-alert" id="ai-garment-alert" hidden>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r="0.5" fill="currentColor"/>
+            </svg>
+            Photo not recognized as clothing — please upload a clear, well-lit photo of the garment.
+          </div>
+          <!-- Unknown fabric alert — shown below the dropzone grid -->
+          <div class="ml-unknown-alert" id="ml-unknown-alert" hidden>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r="0.5" fill="currentColor"/>
+            </svg>
+            Fabric unclear — please upload a closer, well-lit photo of the texture.
+          </div>
+        </div>
+
+        <div class="form-grid">
+          <div class="field-group">
+            <label class="field-label" for="f-brand">Brand</label>
+            <input type="text" id="f-brand" class="field-input" placeholder="e.g. Loro Piana" required />
+          </div>
+          <div class="field-group">
+            <label class="field-label" for="f-type">Type</label>
+            <input type="text" id="f-type" class="field-input" placeholder="e.g. Jacket" required />
+          </div>
+          <div class="field-group">
+            <label class="field-label" for="f-color">Color</label>
+            <input type="text" id="f-color" class="field-input" placeholder="e.g. Midnight Navy" required />
+          </div>
+          <div class="field-group">
+            <label class="field-label" for="f-fabric">Fabric</label>
+            <input type="text" id="f-fabric" class="field-input" placeholder="e.g. 100% Cashmere" required />
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" class="btn-ghost" id="btn-cancel-drawer">Cancel</button>
+          <button type="submit" class="btn-primary" id="btn-submit">
+            <span id="submit-label">Secure to Vault</span>
+            <div class="btn-loader" id="btn-loader" style="display:none;"></div>
+          </button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+  <!-- TREATMENT CONFIRM MODAL (with Wizard Stages) -->
+  <div class="treat-confirm-overlay" id="treat-confirm-overlay" aria-hidden="true">
+    <div class="treat-confirm-panel" role="dialog" aria-modal="true">
+
+      <!-- Stage 1: Review & Confirm -->
+      <div id="treat-stage-review" class="treat-stage-view active">
+        <div class="treat-confirm-icon" id="treat-confirm-icon"></div>
+        <h2 class="treat-confirm-heading" id="treat-confirm-heading"></h2>
+        <p class="treat-confirm-sub" id="treat-confirm-sub"></p>
+        <div class="treat-confirm-items" id="treat-confirm-items"></div>
+
+        <div class="treat-confirm-actions">
+          <button class="btn-ghost" id="treat-confirm-cancel">Go Back</button>
+          <button class="btn-primary" id="treat-confirm-ok">Confirm Parameters</button>
+        </div>
+      </div>
+
+      <!-- Stage 2: Care Wizard Slideshow -->
+      <div id="treat-stage-wizard" class="treat-stage-view">
+        <div class="wizard-header">
+          <span class="wizard-progress-badge" id="wizard-progress">Step 1 of 5</span>
+          <div class="wizard-progress-track">
+            <div class="wizard-progress-bar" id="wizard-progress-bar" style="width: 20%;"></div>
+          </div>
+        </div>
+
+        <div class="wizard-window-viewport">
+          <div class="wizard-slide-track" id="wizard-slide-track"></div>
+        </div>
+
+        <div class="wizard-actions">
+          <button class="btn-ghost" id="btn-wizard-prev">Back</button>
+          <button class="btn-primary" id="btn-wizard-next">Next</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- GARMENT PICKER OVERLAY (split-view scoped) -->
+  <div class="sv-picker-overlay" id="sv-picker-overlay" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Select garments for consultation">
+    <div class="sv-picker-panel">
+      <div class="sv-picker-header">
+        <div>
+          <h3 class="sv-picker-title">Select Garments</h3>
+          <p class="sv-picker-sub">Choose the items you want advice on. The AI will use their exact fabric &amp; colour data.</p>
+        </div>
+        <button class="sv-picker-close" id="sv-picker-close" aria-label="Close garment picker">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+      <div class="sv-picker-grid" id="sv-picker-grid" role="list"></div>
+      <div class="sv-picker-footer">
+        <span class="sv-picker-count" id="sv-picker-count">0 selected</span>
+        <button class="sv-picker-confirm btn-primary" id="sv-picker-confirm" disabled>
+          Confirm Selection
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts: Supabase CDN first, then app modules in dependency order -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Teachable Machine fabric classifier -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+
+  <script src="/static/config.js"></script>
+  <script src="/static/database.js"></script>
+  <script src="/static/ui-engine.js"></script>
+  <script src="/static/product-db.js"></script>
+  <script src="/static/care-wizard.js"></script>
+  <script src="/static/split-view.js"></script>
+</body>
+</html>
