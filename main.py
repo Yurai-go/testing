@@ -23,8 +23,7 @@ from typing import AsyncIterator, Optional, List, Dict, Any
 import httpx
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import JSONResponse, StreamingResponse
 
 import os
 from groq import Groq
@@ -52,7 +51,8 @@ ACCEPTED_MIME_TYPES: frozenset[str] = frozenset({
     "image/jpeg", "image/png", "image/webp", "image/gif",
 })
 
-DB_PATH: str = "velour_vault.db"
+# On Vercel, the filesystem is read-only except for /tmp
+DB_PATH: str = "/tmp/velour_vault.db"
 
 # ── Product Catalog (mirrors product-db.js) ───────────────────────────────────
 # This is the single source of truth for affiliate products the AI can recommend.
@@ -260,9 +260,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 app = FastAPI(title="Velour Wardrobe Concierge API", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
-_static_dir = Path(__file__).parent
-if _static_dir.exists():
-    app.mount("/static", StaticFiles(directory=str(_static_dir)), name="static")
+# Static files are served by Vercel's CDN directly — no need to mount them here
 
 
 def _encode_image_to_base64(raw_bytes: bytes, mime_type: str) -> str:
@@ -335,18 +333,6 @@ async def _stream_groq_response(client: httpx.AsyncClient, payload: dict, sessio
 
 
 # ── Core Endpoints ────────────────────────────────────────────────────────────
-
-@app.get("/", response_class=HTMLResponse, include_in_schema=False)
-async def serve_index():
-    index_path = Path(__file__).parent / "index.html"
-    return HTMLResponse(content=index_path.read_text(encoding="utf-8")) if index_path.exists() else HTMLResponse("Frontend not found")
-
-
-@app.get("/chat.html", response_class=HTMLResponse, include_in_schema=False)
-async def serve_chat():
-    """Serve the chat interface frontend SPA."""
-    chat_path = Path(__file__).parent / "chat.html"
-    return HTMLResponse(content=chat_path.read_text(encoding="utf-8")) if chat_path.exists() else HTMLResponse("Chat frontend not found")
 
 
 @app.get("/api/sessions", tags=["Storage"])
